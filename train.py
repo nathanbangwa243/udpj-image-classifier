@@ -355,6 +355,7 @@ def main():
     print("[RUN] save_checkpoints", "=" * 50, '\n')
     save_checkpoints(model, in_arg.hidden_units, in_arg.arch, optimizer, in_arg.epochs, in_arg.save_dir)
     print(in_arg.save_dir)
+    
     os.system("ls -lh '{}'".format(in_arg.save_dir))
     print('\n')
 
