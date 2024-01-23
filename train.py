@@ -31,6 +31,9 @@ from torch import optim
 import torch.nn.functional as F
 from torchvision import datasets, transforms, models
 
+from helpers import build_model
+from helpers import save_checkpoints
+from helpers import load_checkpoint
 
 def get_input_args():
     """
@@ -112,6 +115,7 @@ def get_dataloaders(data_dir):
             
         Returns:
             dataloaders - the dataloarders dict
+            class_to_idx - the class to index mapping dict
     """
 
     # subdirs
@@ -147,71 +151,43 @@ def get_dataloaders(data_dir):
                 "valid": torch.utils.data.DataLoader(image_datasets['valid'], batch_size=32),
                 }
     
-    return dataloaders
+    return dataloaders, image_datasets['train'].class_to_idx
 
-def build_model(arch, hidden_units, nb_classes=102):
+def get_lossf_optim(model, arch, learnrate):
     """
-        Download the pretrained model and attach new classifier.
+        Define the loss function and the optimizer
 
         Parameters:
-            arch - pretrained model to download
-            hidden_units - number of hidden unit of the new classifier
-            nb_classes - output of the new classifier
+            model - the trained model
+            learnrate - the learning rate
             
         Returns:
-            torchvision.models.vgg.VGG - the model
+            criterion - the loss function
+            optimizer - the optimizer
     """
+    # define loss function
+    criterion = nn.NLLLoss()
 
-    model = None
-
+    # Only train the classifier parameters, feature parameters are frozen
     if arch == 'vgg13':
-        model = models.vgg13(pretrained=True)
-
-        # Freeze parameters so we don't backprop through them
-        for param in model.parameters():
-            param.requires_grad = False
-
-        # define new classifier 
-        classifier = nn.Sequential(OrderedDict([('fc1', nn.Linear(model.classifier.in_features, hidden_units)),
-                                                ('relu', nn.ReLU()),
-                                                ('dropout', nn.Dropout(0.2)),
-                                                ('fc2', nn.Linear(hidden_units, nb_classes)),
-                                                ('output', nn.LogSoftmax(dim=1))
-                                            ]))
-        
-    
-        # attach new classifier
-        model.classifier = classifier
-    
+        optimizer = optim.Adam(model.classifier.parameters(), lr=learnrate)
     else:
-        model = models.resnet50(pretrained=True)
+        optimizer = optim.Adam(model.fc.parameters(), lr=learnrate)
 
-        # Freeze parameters so we don't backprop through them
-        for param in model.parameters():
-            param.requires_grad = False
 
-        # define new classifier 
-        classifier = nn.Sequential(OrderedDict([('fc1', nn.Linear(model.fc.in_features, hidden_units)),
-                                                ('relu', nn.ReLU()),
-                                                ('dropout', nn.Dropout(0.2)),
-                                                ('fc2', nn.Linear(hidden_units, nb_classes)),
-                                                ('output', nn.LogSoftmax(dim=1))
-                                            ]))
-        
-    
-        # attach new classifier
-        model.fc = classifier
-    
-    return model
+    return criterion, optimizer
 
-def train_model(model, dataloaders, learnrate, epochs, device):
+
+def train_model(model, dataloaders, criterion, optimizer, epochs, device):
     """
         Train model.
 
         Parameters:
             model - then model to train
             dataloaders - the dataloarders dict
-            learnrate - the learning rate
+            criterion - the loss function
+            optimizer - the optimizer
+            epochs - number of epochs
             device - torch.device
             
         Returns:
@@ -219,11 +195,7 @@ def train_model(model, dataloaders, learnrate, epochs, device):
             optimizer - the optimizer
     """
 
-    # define loss function
-    criterion = nn.NLLLoss()
-
-    # Only train the classifier parameters, feature parameters are frozen
-    optimizer = optim.Adam(model.fc.parameters(), lr=learnrate)
+    
 
     # move model to device
     model.to(device);
@@ -233,6 +205,8 @@ def train_model(model, dataloaders, learnrate, epochs, device):
     for e in range(epochs):
         tot_train_loss = 0
         for images, labels in dataloaders['train']:
+            print('.', end='')
+
             optimizer.zero_grad()
 
             # Move input and label tensors to the default device
@@ -243,8 +217,9 @@ def train_model(model, dataloaders, learnrate, epochs, device):
             tot_train_loss += loss.item()
 
             loss.backward()
-            optimizer.step()
+            optimizer.step()        
         else:
+            print('\n')
             tot_valid_loss = 0
             valid_correct = 0  # Number of correct predictions on the valid set
 
@@ -331,36 +306,10 @@ def test_model(model, dataloaders, criterion, device):
     # At completion of epoch
     test_losses.append(test_loss)
 
-    print("Epoch: {}/{}.. ".format(e+1, epochs),
-            "Training Loss: {:.3f}.. ".format(train_loss),
+    print("Training Loss: {:.3f}.. ".format(train_loss),
             "Test Loss: {:.3f}.. ".format(test_loss),
             "Test Accuracy: {:.3f}".format(test_correct / len(dataloaders['test'].dataset)))
 
-
-
-def save_checkpoints(model, optimizer, epochs, save_dir):
-    """
-        Save checkpoints
-
-        Parameters:
-            model - the trained model
-            optimizer - the optimizer
-            epochs - the number of epochs
-            save_dir - Checkpoints folder
-            
-        Returns:
-            None
-
-    """
-    checkpoint_file = save_dir + 'checkpoint.pth'
-
-    checkpoint = {'epochs': epochs,
-                 'class_to_idx': model.class_to_idx, 
-                 'optim_state_dict': optimizer.state_dict(),
-                 'model_state_dict': model.state_dict(),
-                }
-
-    torch.save(checkpoint, checkpoint_file)
 
 def main():
     # retrieve cmd line argument
@@ -369,21 +318,33 @@ def main():
     print(in_arg, '\n')
 
     # Use GPU if it's available
+    print("[RUN] torch.device", "=" * 50, '\n')
     device = torch.device("cuda" if torch.cuda.is_available() and in_arg.gpu else "cpu")
+    print(device, '\n')
 
     # get dataloaders
-    dataloaders = get_dataloaders(data_dir=in_arg.data_dir)
+    print("[RUN] get_dataloaders", "=" * 50, '\n')
+    dataloaders, class_to_idx = get_dataloaders(data_dir=in_arg.data_dir)
+    print(get_dataloaders, '\n')
 
     # build_model
     print("[RUN] build_model", "=" * 50, '\n')
     model = build_model(arch=in_arg.arch, hidden_units=in_arg.hidden_units)
     print(model, '\n')
 
+    # attach classes to model
+    model.class_to_idx = class_to_idx
 
+    # criterion and optimizer
+    print("[RUN] get_lossf_optim", "=" * 50, '\n')
+    criterion, optimizer = get_lossf_optim(model, arch=in_arg.arch, learnrate=in_arg.learning_rate)
+    print(criterion, optimizer, '\n')
+    
     # train model
     print("[RUN] train_model", "=" * 50, '\n')
-    criterion, optimizer = train_model(model, dataloaders, learnrate=in_arg.learning_rate, epochs=in_arg.epochs)
-    print(criterion, optimizer, '\n')
+    criterion, optimizer = train_model(model, dataloaders, criterion, optimizer, epochs=in_arg.epochs, device=device)
+    print(criterion, '\n')
+    print(optimizer, '\n')
     
     # test model
     print("[RUN] test_model", "=" * 50, '\n')
@@ -391,10 +352,14 @@ def main():
     print('\n')
 
     # save model
-    print("[RUN] test_model", "=" * 50, '\n')
-    save_checkpoints(model, optimizer, in_arg.epochs, in_arg.save_dir)
+    print("[RUN] save_checkpoints", "=" * 50, '\n')
+    save_checkpoints(model, in_arg.hidden_units, in_arg.arch, optimizer, in_arg.epochs, in_arg.save_dir)
+    print(in_arg.save_dir)
+    os.system("ls -lh '{}'".format(in_arg.save_dir))
     print('\n')
 
 
 if __name__ == "__main__":
     main()
+
+    # python train.py flowers --learning_rate 0.01 --hidden_units 512 --epochs 1 --gpu

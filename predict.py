@@ -29,6 +29,13 @@ from torch import optim
 import torch.nn.functional as F
 from torchvision import datasets, transforms, models
 
+# helpers
+from helpers import build_model
+from helpers import save_checkpoints
+from helpers import load_checkpoint
+from helpers import process_image
+from helpers import load_category_names
+
 def get_input_args():
     """
     Retrieves and parses the 5 command line arguments provided by the user when
@@ -87,11 +94,95 @@ def get_input_args():
     # you created with this function 
     return parser.parse_args()
 
+
+def predict(image_path, model, topk, device):
+    ''' 
+        Predict the class (or classes) of an image using a trained deep learning model.
+    '''
+
+    # move model to device
+    model.to(device);
+    
+    # Implement the code to predict the class from an image file
+    image = process_image(image_path)
+    
+    # add batch and move to device
+    image = image.view(1, *image.shape)
+    image = image.to(device)
+    
+    with torch.no_grad():
+        model.eval()
+        
+        # do inference
+        log_ps = model(image)
+
+        ps = torch.exp(log_ps)
+        top_p, top_class = ps.topk(topk, dim=1)
+        
+        top_p, top_class = top_p.cpu()[0].numpy(), top_class.cpu()[0].numpy()
+
+        # Invert the dictionary to get a mapping from index to class
+        idx_to_class = {idx: cls for cls, idx in model.class_to_idx.items()}
+
+        classes = [idx_to_class[tc] for tc in top_class]
+    
+    model.train()
+    
+    return top_p, classes
+
+def display_prediction(top_p, classes, category_names_file):
+    """
+        Display classifier results
+
+        Parameters:
+            top_p - the top probabilities
+            classes - the top classes
+            category_names_file - The mapping of categories to real names
+            
+        Returns:
+            None
+    """
+
+    cat_to_name = load_category_names(filename=category_names_file)
+
+    top_names = [cat_to_name[cls] for cls in classes]
+
+    for i, (name, prob) in enumerate(zip(top_names, top_p)):
+        print("{}. {} : {:.3f}%".format(i+1, name, prob * 100))
+    
+    
+
+
 def main():
     # retrieve cmd line argument
     print("[RUN] get_input_args", "=" * 50, '\n')
     in_arg = get_input_args()
     print(in_arg, '\n')
 
+    # Use GPU if it's available
+    print("[RUN] torch.device", "=" * 50, '\n')
+    device = torch.device("cuda" if torch.cuda.is_available() and in_arg.gpu else "cpu")
+    print(device, '\n')
+
+    # load trained model
+    print("[RUN] load_checkpoint", "=" * 50, '\n')
+    model = load_checkpoint(filepath=in_arg.checkpoint)
+    print(model)
+    print('\n')
+
+    # make prediction
+    print("[RUN] predict", "=" * 50, '\n')
+    top_p, classes = predict(image_path=in_arg.input, model=model, topk=in_arg.top_k, device=device)
+    print('top_p: ', top_p)
+    print('classes: ', classes)
+    print('\n')
+
+    # display results
+    print("[RUN] display_prediction", "=" * 50, '\n')
+    display_prediction(top_p, classes, category_names_file=in_arg.category_names)
+    print('\n')
+
 if __name__ == "__main__":
     main()
+
+    # python predict.py "flowers/test/1/image_06743.jpg" checkpoints/checkpoint.pth --gpu
