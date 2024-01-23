@@ -29,14 +29,14 @@ PROGRAMMER: @nathanbangwa243
 PURPOSE: Download flowers dataset
 
 * **Make the script executable using the following command:**
-* 
+ 
 ```bash
 chmod +x download_dataset.sh
 
 ```
 
 * **Now, you can run the script:**
-* 
+ 
 ```bash
 ./download_dataset.sh
 
