@@ -1,5 +1,7 @@
 # udpj-image-classifier
 
+![Loss Metrics](train_valid.png)
+
 An image classifier with Pytorch (for an udacity project).
 
 
