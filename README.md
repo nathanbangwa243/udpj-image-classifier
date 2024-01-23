@@ -111,10 +111,10 @@ python predict.py input checkpoint --top_k 3
 python predict.py input checkpoint --category_names cat_to_name.json
 ```
 
-* **Use GPU for training:** 
+* **Use GPU for inference:** 
  
 ```python
-python train.py data_dir --gpu
+python predict.py input checkpoint --gpu
 ```
 
 ### Concret Example
