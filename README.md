@@ -139,4 +139,4 @@ python predict.py "flowers/test/1/image_06743.jpg" checkpoints/checkpoint-final.
 python predict.py "flowers/test/1/image_06743.jpg" checkpoints/checkpoint.pth --gpu
 ```
 
-![Git error](assets/predict_result.png)
+![Result](assets/predict_result.png)
