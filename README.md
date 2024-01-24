@@ -24,6 +24,16 @@ First up is importing the packages you'll need. It's good practice to keep all t
 
 PROGRAMMER: @nathanbangwa243
 
+## Notice
+
+![Loss Metrics](assets/giterror.png)
+
+```checkpoint-final.pth``` has been tracked using Git LFS, and the current contents of the file have been stored outside the Git repository in Git LFS storage.
+
+Please ensure that Git LFS is installed and configured on your local machine before pulling changes.
+
+Or [download checkpoint-final](https://drive.google.com/drive/folders/1uZpAPqB-m25j0BW6vwHaL4IFVGJIsosb?usp=sharing) to manually download the checkpoint file.
+
 ## 0. download_dataset.sh
 
 PURPOSE: Download flowers dataset
