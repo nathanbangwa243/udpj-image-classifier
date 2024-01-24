@@ -26,7 +26,7 @@ PROGRAMMER: @nathanbangwa243
 
 ## Notice
 
-![Loss Metrics](assets/giterror.png)
+![Git error](assets/giterror.png)
 
 ```checkpoint-final.pth``` has been tracked using Git LFS, and the current contents of the file have been stored outside the Git repository in Git LFS storage.
 
@@ -138,3 +138,5 @@ python predict.py "flowers/test/1/image_06743.jpg" checkpoints/checkpoint-final.
 ```python 
 python predict.py "flowers/test/1/image_06743.jpg" checkpoints/checkpoint.pth --gpu
 ```
+
+![Git error](assets/predict_result.png)
