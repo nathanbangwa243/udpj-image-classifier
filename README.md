@@ -131,12 +131,12 @@ python predict.py input checkpoint --gpu
 
 * **Use model trained with notebook**
 ```python 
-python predict.py "flowers/test/1/image_06743.jpg" checkpoints/checkpoint-final.pth --gpu
+python predict.py "flowers/test/2/image_05100.jpg" checkpoints/checkpoint-final.pth --gpu
 ```
 
 * **Use model trained with train.py**
 ```python 
-python predict.py "flowers/test/1/image_06743.jpg" checkpoints/checkpoint.pth --gpu
+python predict.py "flowers/test/2/image_05100.jpg" checkpoints/checkpoint.pth --gpu
 ```
 
 ![Result](assets/predict_result.png)
